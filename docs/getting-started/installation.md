@@ -35,7 +35,7 @@ Upgrade pip and install the core Ansible framework along with required dependenc
 
 ```bash
 pip install --upgrade pip setuptools wheel
-pip install ansible>=2.14.0 requests>=2.28.0 urllib3>=1.26.0 six>=1.16.0
+pip install 'ansible>=2.14.0' 'requests>=2.28.0' 'urllib3>=1.26.0' 'six>=1.16.0'
 ```
 
 ## Step 4: Install Nokia NSP Collection
