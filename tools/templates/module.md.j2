@@ -1,0 +1,49 @@
+# {{ namespace }} module
+
+– {{ short_description }}
+
+## Synopsis
+
+* {{ short_description }}
+{%- if description_items %}
+{% for item in description_items %}
+* {{ item }}
+{%- endfor %}
+{%- endif %}
+{%- if options %}
+
+## Parameters
+
+| Option | Type | Required | Default | Description |
+|--------|------|----------|---------|-------------|
+{%- for opt_name, opt_data in options.items() | sort %}
+| `{{ opt_name }}` | {{ opt_data.type or 'N/A' }} | {% if opt_data.required %}Yes{% else %}No{% endif %} | {{ opt_data.default or '-' }} | {{ opt_data.description_text }}{% if opt_data.choices %} Choices: {{ opt_data.choices | join(', ') }}{% endif %}{% if opt_data.aliases %} Aliases: {{ opt_data.aliases | join(', ') }}{% endif %} |
+{%- endfor %}
+{%- endif %}
+{%- if notes %}
+
+## Notes
+{% for note in notes %}
+* {{ note }}
+{%- endfor %}
+{%- endif %}
+{%- if examples %}
+
+## Examples
+
+```yaml
+{{ examples }}
+```
+{%- endif %}
+{%- if return_values %}
+
+## Return Values
+
+```yaml
+{{ return_values }}
+```
+{%- endif %}
+{%- if version_added %}
+
+*New in version {{ version_added }}*
+{%- endif %}

@@ -1,0 +1,28 @@
+---
+namespace: nokia
+name: nsp
+version: 0.0.1
+readme: README.md
+authors:
+- Sven Wisotzky <sven.wisotzky@nokia.com>
+description: Ansible collection for Nokia NSP
+license: BSD-3-Clause
+tags:
+  - nokia
+  - nsp
+  - networking
+  - restconf
+repository: https://github.com/wisotzky/nsp-ansible-collection
+dependencies:
+  ansible.netcommon: ">=5.2.0"
+  ansible.utils: ">=3.0.0"
+repository: https://github.com/wisotzky/nsp-ansible-collection
+documentation: https://github.com/wisotzky/nsp-ansible-collection
+homepage: https://github.com/wisotzky/nsp-ansible-collection
+issues: https://github.com/wisotzky/nsp-ansible-collection/issues
+build_ignore:
+  - .github/
+  - tools/
+  - tests/
+  - CHANGELOG.md
+  - CONTRIBUTING.md
