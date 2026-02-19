@@ -60,9 +60,12 @@ def check_python_version():
         raise RuntimeError(error_msg)
 
     logger.debug(
-        f"Python version check passed: {current_version.major}."
-        f"{current_version.minor}.{current_version.micro} >= "
-        f"{PYTHON_MIN_VERSION[0]}.{PYTHON_MIN_VERSION[1]}"
+        "Python version check passed: %s.%s.%s >= %s.%s",
+        current_version.major,
+        current_version.minor,
+        current_version.micro,
+        PYTHON_MIN_VERSION[0],
+        PYTHON_MIN_VERSION[1],
     )
     return current_version
 
@@ -88,11 +91,11 @@ def parse_version(version_string):
 
 def check_package_version(package_name, required_version_str):
     """Check if a package meets minimum version requirement.
-    
+
     Args:
         package_name (str): Name of the package (e.g., 'requests')
         required_version_str (str): Minimum required version (e.g., '2.28.0')
-        
+
     Returns:
         dict: {
             'installed': bool,
@@ -101,19 +104,19 @@ def check_package_version(package_name, required_version_str):
             'satisfied': bool,
             'error': str or None
         }
-        
+
     Raises:
         ImportError: If critical package is missing
     """
     required_version = parse_version(required_version_str)
-    
+
     try:
         module = __import__(package_name)
         current_version_str = getattr(module, '__version__', 'unknown')
         current_version = parse_version(current_version_str)
-        
+
         is_satisfied = current_version >= required_version
-        
+
         if not is_satisfied:
             return {
                 'installed': True,
@@ -125,8 +128,13 @@ def check_package_version(package_name, required_version_str):
                     f"but minimum {required_version_str} is required"
                 )
             }
-        
-        logger.debug(f"Package version check passed: {package_name} {current_version_str} >= {required_version_str}")
+
+        logger.debug(
+            "Package version check passed: %s %s >= %s",
+            package_name,
+            current_version_str,
+            required_version_str,
+        )
         return {
             'installed': True,
             'current_version': current_version_str,
@@ -134,7 +142,7 @@ def check_package_version(package_name, required_version_str):
             'satisfied': True,
             'error': None
         }
-        
+
     except ImportError:
         return {
             'installed': False,
@@ -147,12 +155,12 @@ def check_package_version(package_name, required_version_str):
 
 def check_all_requirements():
     """Check all Python and package requirements.
-    
+
     This is the main entry point for comprehensive requirement validation.
-    
+
     Raises:
         RuntimeError: If any requirement is not satisfied
-        
+
     Returns:
         dict: Validation results with all checks performed
     """
@@ -161,7 +169,7 @@ def check_all_requirements():
         'packages': {},
         'all_satisfied': True
     }
-    
+
     # Check Python version
     try:
         python_version = check_python_version()
@@ -178,36 +186,33 @@ def check_all_requirements():
         }
         results['all_satisfied'] = False
         raise
-    
+
     # Check package versions
     failed_packages = []
     for package_name, required_version in REQUIRED_PACKAGES.items():
         result = check_package_version(package_name, required_version)
         results['packages'][package_name] = result
-        
+
         if not result['satisfied']:
             results['all_satisfied'] = False
             failed_packages.append(result['error'])
-    
+
     # If any packages failed, raise with all errors
     if failed_packages:
         error_msg = "Nokia NSP Ansible collection requirement validation failed:\n\n"
-        
-        for error in failed_packages:
-            error_msg += f"  ✗ {error}\n"
-        
-        error_msg += "\nTroubleshooting:\n"
+        error_msg += "\n".join(f"  ✗ {err}" for err in failed_packages) + "\n\n"
+        error_msg += "Troubleshooting:\n"
         error_msg += "  1. Check installed packages: pip list\n"
         error_msg += "  2. Install/upgrade requirements: pip install -r requirements.txt\n"
         error_msg += "  3. In development: pip install -r requirements-dev.txt\n"
         error_msg += "  4. Verify virtual environment is activated\n"
         error_msg += f"  5. Minimum requirements:\n"
-        
+
         for package_name, version in REQUIRED_PACKAGES.items():
             error_msg += f"       - {package_name} >= {version}\n"
-        
+
         raise RuntimeError(error_msg)
-    
+
     return results
 
 
@@ -220,5 +225,5 @@ try:
     _validation_results = check_all_requirements()
     logger.info("Nokia NSP collection requirements validated successfully")
 except RuntimeError as e:
-    logger.error(f"Requirement validation failed: {e}")
+    logger.error("Requirement validation failed: %s", e)
     raise

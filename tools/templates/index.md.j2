@@ -6,13 +6,13 @@ Auto-generated from plugin and module docstrings to maintain DRY principle.
 
 ## Available Plugins
 {% for plugin_name, plugin_data in plugins.items() | sort %}
-- [`{{ plugin_data.namespace }}`](plugin-{{ plugin_name }}.md) - {{ plugin_data.description }}
+- [`{{ plugin_data.namespace }}`]({{ plugin_data.namespace }}.md) - {{ plugin_data.description }}
 {%- endfor %}
 {%- endif %}
 {%- if modules %}
 
 ## Available Modules
 {% for module_name, module_data in modules.items() | sort %}
-- [`{{ module_data.namespace }}`](module-{{ module_name }}.md) - {{ module_data.description }}
+- [`{{ module_data.namespace }}`]({{ module_data.namespace }}.md) - {{ module_data.description }}
 {%- endfor %}
 {%- endif %}

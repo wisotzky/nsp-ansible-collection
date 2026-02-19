@@ -48,7 +48,8 @@ ansible-playbook site.yml --check --diff
 ansible-playbook site.yml --diff
 ```
 
-**Important limitation:** RPC operations and actions don't report whether they would make changes, since this depends on the specific NSP API endpoint. Use check mode to test the playbook flow, not to verify changes.
+!!! warning "Limited support in this collection"
+    Check mode, diff, and change reporting are only supported in **very selective scenarios** (e.g. the workflow module supports check mode). RPC operations, actions, and many REST calls do not report whether they would or did make changes. Do not blindly trust `--check`, `--diff`, or `changed` for all tasks. See the [Developer Guide](developer-guide.md) for best practices and always validate in dev/staging before production.
 
 ### Step-by-Step Execution
 

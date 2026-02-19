@@ -33,54 +33,61 @@ except ImportError:
 DOCUMENTATION = r'''
 ---
 module: wfm
-short_description: Manage Nokia NSP Workflow Manager workflows
+short_description: Manage workflows in Nokia NSP
 description:
-  - Create, update, delete, and execute workflows in Nokia NSP Workflow Manager.
+  - Create, update, delete, and execute workflows in Workflow Manager.
   - Upload workflows from files or directories (with optional README and UI schemas).
-  - Define workflows inline with YAML text.
+  - Create workflows from YAML definition.
   - Execute workflows synchronously.
-  - Follows VS Code Workflow Manager extension logic.
 version_added: "0.0.1"
 author:
   - Sven Wisotzky
 options:
   upload:
     description:
-      - Path to workflow YAML file or directory.
-      - If directory, must contain exactly one C(.yaml) or C(.yml) file.
-      - Automatically includes optional C(README.md) and schema C(.json) files if present.
+      - Create or updates a workflow.
+      - User provides either a file path or a directory path.
+      - If file is provided, it must be a valid YAML file.
+      - If directory is provided, it must contain exactly one C(.yaml) or C(.yml) file.
+      - Automatically transitions  lifecycle: DRAFT → PUBLISHED.
+      - Upload includes C(README.md) and UI schema C(.json) files if present.
+      - Mutually exclusive with O(define), O(execute), or O(delete).
     type: path
     required: false
   define:
     description:
-      - Inline workflow definition as YAML text.
-      - Creates or updates the workflow.
+      - Create or updates a workflow.
+      - Workflow definition is provided as YAML text.
+      - A compelete and valid workflow definition must be provided.
+      - Automatically transitions  lifecycle: DRAFT → PUBLISHED.
+      - Mutually exclusive with O(upload), O(execute), or O(delete).
     type: str
     required: false
   execute:
     description:
-      - Workflow name or UUID to execute synchronously.
+      - Execute a workflow synchronously.
+      - Workflow name or UUID to be provided.
       - Returns execution result with state and output.
+      - Mutually exclusive with O(upload), O(define), or O(delete).
     type: str
     required: false
   delete:
     description:
-      - Workflow name or UUID to delete.
-      - First sets workflow to DRAFT status before deletion.
+      - Deletes a workflow from NSP.
+      - Workflow name or UUID to be provided.
     type: str
     required: false
   input:
     description:
       - Input parameters for workflow execution.
-      - Only used with I(execute) operation.
+      - Used if O(execute) is used.
     type: dict
-    required: false
     default: {}
 requirements:
   - Ansible >= 2.10
   - Connection to NSP controller with I(ansible_network_os=nokia.nsp.nsp).
 notes:
-  - Requires httpapi connection plugin with C(ansible_network_os=nokia.nsp.nsp).
+  - Requires M(ansible.netcommon.httpapi) connection using Network OS M(nokia.nsp.nsp).
   - Exactly one of O(upload), O(define), O(execute), or O(delete) must be specified.
   - Using check-mode workflows will be validated but not created/updated.
   - Updates follow lifecycle: DRAFT → update → PUBLISHED.
@@ -211,6 +218,7 @@ def get_workflow_by_name(connection, workflow_name):
         Workflow details dict if found, None otherwise.
     """
     data = connection.send_request(None, path="/wfm/api/v1/workflow", method="GET")
+    data = data[1] if isinstance(data, tuple) and len(data) > 1 else data
     workflows = data.get("response", {}).get("data", [])
 
     for workflow in workflows:
@@ -253,6 +261,7 @@ def handle_define(module, connection, definition):
                 method="POST",
                 content_type="text/plain"
             )
+            data = data[1] if isinstance(data, tuple) and len(data) > 1 else data
         except Exception as e:
             module.fail_json(
                 msg=f"Workflow validation error: {to_native(e)}",
@@ -319,6 +328,7 @@ def handle_define(module, connection, definition):
                     method="POST",
                     content_type="text/plain"
                 )
+                data = data[1] if isinstance(data, tuple) and len(data) > 1 else data
 
                 workflow_info = data.get("response", {}).get("data", [{}])[0]
                 workflow_id = workflow_info.get("id")
@@ -497,6 +507,7 @@ def handle_execute(module, connection, workflow_identifier, input_params):
             path="/wfm/api/v1/execution/synchronous",
             method="POST"
         )
+        data = data[1] if isinstance(data, tuple) and len(data) > 1 else data
     except Exception as e:
         module.fail_json(
             msg=f"Failed to execute workflow: {to_native(e)}",

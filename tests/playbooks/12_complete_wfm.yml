@@ -42,7 +42,6 @@
       nokia.nsp.rest:
         method: PUT
         path: /wfm/api/v1/workflow/{{ workflow_id }}/status
-        body_format: json
         body:
           status: PUBLISHED
     
@@ -50,7 +49,7 @@
       nokia.nsp.rest:
         method: POST
         path:  /wfm/api/v1/execution/synchronous
-        body_format: json
+        dest: /tmp/result.txt
         body:
           params:
             env: DefaultEnv

@@ -8,7 +8,6 @@
       nokia.nsp.rest:
         method: POST
         path: /wfm/api/v1/action-execution
-        body_format: json
         body:
           name: nsp.ping
           examples: Default

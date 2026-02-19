@@ -55,6 +55,8 @@ options:
       - name: ANSIBLE_HTTPAPI_NSP_HOST
     vars:
       - name: ansible_httpapi_nsp_host
+requirements:
+  - Ansible >= 2.10
 notes:
   - OAuth2 client credentials are configured via C(ansible_user) and C(ansible_password).
   - All modules in this collection automatically use this plugin when C(ansible_network_os=nokia.nsp.nsp).
@@ -117,13 +119,14 @@ class HttpApi(HttpApiBase):
             method="POST",
             headers=headers
         )
+        body = response[1] if isinstance(response, tuple) and len(response) > 1 else response
 
         # Parse and validate response
-        if isinstance(response, dict):
-            self.token = response.get("access_token")
+        if isinstance(body, dict):
+            self.token = body.get("access_token")
             if not self.token:
                 raise ConnectionError(
-                    "No access_token in response: {0}".format(response)
+                    "No access_token in response: {0}".format(body)
                 )
             # Set connection._auth for automatic Bearer token injection
             self.connection._auth = {
@@ -133,7 +136,7 @@ class HttpApi(HttpApiBase):
             }
         else:
             raise ConnectionError(
-                "Unexpected response type: {0}".format(type(response))
+                "Unexpected response type: {0}".format(type(body))
             )
 
     def logout(self):
@@ -253,8 +256,9 @@ class HttpApi(HttpApiBase):
             path, data, method=method, headers=headers
         )
 
-        # Log response status
-        self._debug_log(f"RESPONSE STATUS: {response.status}")
+        # HTTP status for callers (e.g. rest module) that need it for dest / result
+        status = getattr(response, "status", getattr(response, "code", 200))
+        self._debug_log(f"RESPONSE STATUS: {status}")
 
         if isinstance(response, HTTPError):
             body = response_data.read()
@@ -263,17 +267,20 @@ class HttpApi(HttpApiBase):
         data = response_data.read()
 
         try:
-            return json.loads(data)
+            body = json.loads(data)
         except (ValueError, AttributeError):
-            pass
+            body = None
 
-        if isinstance(data, bytes):
-            try:
-                return data.decode("utf-8")
-            except UnicodeDecodeError:
-                pass
+        if body is None:
+            if isinstance(data, bytes):
+                try:
+                    body = data.decode("utf-8")
+                except UnicodeDecodeError:
+                    pass
+            if body is None:
+                body = data
 
-        return data
+        return (status, body)
 
     def _parse_response_data(self, response_data):
         data = response_data.read()

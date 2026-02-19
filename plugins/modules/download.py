@@ -34,29 +34,28 @@ DOCUMENTATION = r'''
 module: download
 short_description: Download files from Nokia NSP
 description:
-  - Download binary or text files from Nokia NSP servers.
-  - Supports NSP file-service API and custom endpoints.
-  - Streams downloads with atomic writes and automatic MD5 verification.
-  - Handles both single and batch downloads.
+  - Downloads binary or text files from Nokia NSP.
+  - Supports NSP file-service application and custom endpoints.
+  - Streams downloads to reduce memory usage for large files.
+  - Calculates MD5 checksum of downloaded files for verification.
+  - Handles both single and multiple file downloads.
 version_added: "0.0.1"
 author:
   - Sven Wisotzky
 options:
   url:
     description:
-      - Full URL path for download (can include query parameters).
-      - For file-service use C(/nsp-file-service-app/rest/api/v1/file/downloadFile?filePath=/path).
-      - Mutually exclusive with C(remote_path).
-    required: false
+      - Full URL of the resource to download.
+      - Path may include query parameters.
+      - Mutually exclusive with O(remote_path).
     type: str
   remote_path:
     description:
-      - Remote file path on NSP file-service (alternative to C(url)).
-      - Automatically converted to file-service download URL.
+      - Remote file path(s) on NSP file-service application
       - Can be a string for single file or list for batch downloads.
-      - "Example: C(/nokia/nsp/cam/artifacts/bundle/nsp-ne-upgrade-with-phases-1.75.0.zip)."
-    required: false
-    type: raw
+      - Mutually exclusive with O(url).
+    type: list
+    elements: str
   local_path:
     description:
       - Local path where file will be saved.
@@ -64,13 +63,11 @@ options:
       - Parent directories are created automatically.
     required: true
     type: path
-notes:
-  - "Requires httpapi connection with ansible_network_os=nokia.nsp.nsp"
-  - "Uses Bearer token authentication (automatic via httpapi)"
-  - "Large files (up to 1GB) streamed with minimal memory usage"
-  - "All downloads verified with MD5 checksum"
 requirements:
-  - ansible >= 2.9
+  - Ansible >= 2.10
+  - Connection to NSP controller with I(ansible_network_os=nokia.nsp.nsp).
+notes:
+  - Requires M(ansible.netcommon.httpapi) connection using Network OS M(nokia.nsp.nsp).
 '''
 
 EXAMPLES = r'''

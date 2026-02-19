@@ -31,41 +31,42 @@ except ImportError:
 DOCUMENTATION = r'''
 ---
 module: action
-short_description: Execute YANG actions on Nokia NSP RESTCONF resources
+short_description: Execute actions on Nokia NSP RESTCONF resources
 description:
-  - Execute resource-specific RESTCONF actions on Nokia NSP.
-  - Actions use endpoint C(/restconf/data/{resource}/{action}).
-  - Uses httpapi connection with OAuth2 client credentials authentication.
+  - Executes RESTCONF actions on Nokia NSP.
+  - Uses M(nokia.nsp.nsp) connection for client authentication.
   - Actions are bound to specific resource instances.
-  - Input parameters must match YANG action input structure.
 version_added: "0.0.1"
 author:
   - Sven Wisotzky
 options:
   path:
     description:
-      - RESTCONF data resource path where the action is executed.
+      - Reference data resource against the action is executed.
+      - RESTCONF compliant URI syntax must be used.
       - Special characters must be URL-encoded.
+      - Namespace prefixes must be used appropriately.
     required: true
     type: str
   operation:
     description:
-      - Action name with optional namespace (e.g., C(audit), C(synchronize)).
-      - Use C(namespace:action-name) for namespaced actions.
+      - Action name with optional namespace.
     required: true
     type: str
   input:
     description:
       - Input parameters for the action.
-      - Must match YANG action input definition.
+      - Must match YANG definition of the action.
     required: false
     type: dict
     default: {}
 notes:
-  - Requires httpapi connection with C(ansible_network_os=nokia.nsp.nsp).
-  - Connection requires valid OAuth2 credentials.
+  - Requires M(ansible.netcommon.httpapi) connection using Network OS M(nokia.nsp.nsp).
   - For global operations use M(nokia.nsp.rpc) instead.
   - Resource path must URL-encode special characters properly.
+requirements:
+  - Ansible >= 2.10
+  - Connection to NSP controller with I(ansible_network_os=nokia.nsp.nsp).
 '''
 
 EXAMPLES = r'''
@@ -73,17 +74,11 @@ EXAMPLES = r'''
   nokia.nsp.action:
     path: "ibn:ibn/intent={{ ne_id | urlencode }},{{ intent_name | urlencode }}"
     operation: audit
-  register: audit_result
 
 - name: Synchronize intent state
   nokia.nsp.action:
     path: "ibn:ibn/intent={{ ne_id | urlencode }},{{ intent_name | urlencode }}"
     operation: synchronize
-  register: sync_result
-
-- name: Display action output
-  debug:
-    var: audit_result
 '''
 
 RETURN = r'''
@@ -91,11 +86,7 @@ output:
   description: Operation output from RESTCONF resource action
   returned: always
   type: dict
-  sample:
-    ibn:output:
-      audit-report:
-        intent-type: helloworld
-        target: 1034::dead:beef:1
+  sample: '{"ibn:output":{"audit-report":{"intent-type":"helloworld","target":"1034::dead:beef:1"}}}'
 failed:
   description: Module execution failed
   returned: always
@@ -150,6 +141,7 @@ def run_module():
         response = connection.send_request(
             payload, path=path, method='POST', headers=headers
         )
+        response = response[1] if isinstance(response, tuple) and len(response) > 1 else response
         result['output'] = _parse_response(response)
         module.exit_json(**result)
 

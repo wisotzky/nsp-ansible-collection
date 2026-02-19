@@ -1,26 +1,24 @@
 # {{ namespace }} httpapi plugin
 
-– {{ short_description }}
+**{{ short_description }}**
 
+{% if description_items -%}
 ## Synopsis
 
-* {{ short_description }}
-{%- if description_items %}
-{% for item in description_items %}
-* {{ item }}
-{%- endfor %}
-{%- endif %}
-{%- if options %}
+{% for item in description_items -%}
+* {{ item | ansible }}
+{% endfor %}
+{% endif -%}
 
+{% if options -%}
 ## Connection Options
 
-| Option | Type | Required | Default | Description |
-|--------|------|----------|---------|-------------|
-{%- for opt_name, opt_data in options.items() | sort %}
-| `{{ opt_name }}` | {{ opt_data.type or 'N/A' }} | {% if opt_data.required %}Yes{% else %}No{% endif %} | {{ opt_data.default or '-' }} | {{ opt_data.description_text }}{% if opt_data.choices %} Choices: {{ opt_data.choices | join(', ') }}{% endif %}{% if opt_data.aliases %} Aliases: {{ opt_data.aliases | join(', ') }}{% endif %} |
-{%- endfor %}
-{%- endif %}
-{%- if version_added %}
+| Parameter | Type | Comments |
+| --- | --- | --- |
+{% for opt_name, opt_data in options.items() | sort %}{% set _anchor = "param-" ~ opt_name.replace('_', '-') %}| {{ opt_name }} {{ '{#' ~ _anchor ~ '}' }} | {{ opt_data.type or 'any' }} | {{ opt_data.comments | replace('\n', '<br/>') }} |
+{% endfor %}
+{% endif -%}
 
+{% if version_added -%}
 *New in version {{ version_added }}*
-{%- endif %}
+{% endif %}

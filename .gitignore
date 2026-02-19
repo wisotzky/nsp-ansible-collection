@@ -8,3 +8,6 @@ tests/inventory.yml
 *.log
 .DS_Store
 site/
+
+# Cursor IDE rules (local only, do not push)
+.cursor/

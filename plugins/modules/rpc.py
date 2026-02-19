@@ -31,11 +31,10 @@ except ImportError:
 DOCUMENTATION = r'''
 ---
 module: rpc
-short_description: Execute global YANG RPC operations on Nokia NSP
+short_description: Execute RPC operations on Nokia NSP
 description:
   - Execute global RESTCONF RPC operations on Nokia NSP.
-  - RPC operations use endpoint C(/restconf/operations/{operation}).
-  - Uses httpapi connection with OAuth2 client credentials authentication.
+  - Uses M(nokia.nsp.nsp) connection for client authentication.
   - Global operations not tied to specific resource instances.
   - Input parameters must match YANG RPC input structure.
 version_added: "0.0.1"
@@ -44,12 +43,9 @@ author:
 options:
   operation:
     description:
-      - RPC operation name with optional namespace (e.g., nsp-inventory:find).
-      - Use C(namespace:operation-name) format for namespaced operations.
+      - RPC operation name with namespace prefix (e.g., nsp-inventory:find).
     required: true
     type: str
-    aliases:
-      - path
   input:
     description:
       - Input parameters for the RPC operation.
@@ -57,9 +53,11 @@ options:
     required: false
     type: dict
     default: {}
+requirements:
+  - Ansible >= 2.10
+  - Connection to NSP controller with I(ansible_network_os=nokia.nsp.nsp).
 notes:
-  - Requires httpapi connection with C(ansible_network_os=nokia.nsp.nsp).
-  - Connection requires valid OAuth2 credentials.
+  - Requires M(ansible.netcommon.httpapi) connection using Network OS M(nokia.nsp.nsp).
   - For resource-specific operations use M(nokia.nsp.action) instead.
 '''
 
@@ -78,10 +76,7 @@ output:
   description: Operation output from RESTCONF RPC call
   returned: always
   type: dict
-  sample:
-    nsp-inventory:output:
-      data: []
-      total-count: 0
+  sample: '{"nsp-inventory:output":{"data":[],"total-count":0}}'
 failed:
   description: Module execution failed
   returned: always
@@ -130,6 +125,7 @@ def run_module():
             payload, path=path, method="POST",
             accept="application/json", content_type="application/json"
         )
+        response = response[1] if isinstance(response, tuple) and len(response) > 1 else response
         result['output'] = _parse_response(response)
         module.exit_json(**result)
 

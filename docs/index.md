@@ -21,6 +21,7 @@ The collection includes:
 - **`nokia.nsp.upload` Module** - Upload files to Nokia NSP
 - **`nokia.nsp.download` Module** - Download files from Nokia NSP
 - **`nokia.nsp.wfm` Module** - Manage Nokia NSP Workflow Manager workflows
+- **`nokia.nsp.ibn` Module** - Manage Nokia NSP Intent Manager intent-types and intents
 
 ## Key Features
 
@@ -37,6 +38,8 @@ Here are some instructions to kickstart your automation journey:
 
 - [Installation](getting-started/installation.md) - Install the collection and dependencies
 - [Quick Start](getting-started/quick-start.md) - Run your first playbook
+- [Developer Guide](guides/developer-guide.md) - Write playbooks against NSP (tutorial and best practices)
+- [Examples](examples.md) - Working use-cases (day0, NSP setup, CI/CD)
 
 ## Support
 

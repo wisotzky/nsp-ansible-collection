@@ -60,15 +60,16 @@ nav:
 - Reference:
   - Overview: reference/index.md
   - Modules:
-    - Action: reference/module-action.md
-    - Download: reference/module-download.md
-    - Rest: reference/module-rest.md
-    - RPC: reference/module-rpc.md
-    - Upload: reference/module-upload.md
-    - Version: reference/module-version.md
-    - Wfm: reference/module-wfm.md
+    - Action: reference/nokia.nsp.action.md
+    - Download: reference/nokia.nsp.download.md
+    - Ibn: reference/nokia.nsp.ibn.md
+    - Rest: reference/nokia.nsp.rest.md
+    - RPC: reference/nokia.nsp.rpc.md
+    - Upload: reference/nokia.nsp.upload.md
+    - Version: reference/nokia.nsp.version.md
+    - Wfm: reference/nokia.nsp.wfm.md
   - Plugins:
-    - NSP: reference/plugin-nsp.md
+    - NSP: reference/nokia.nsp.nsp.md
 plugins:
 - search
 markdown_extensions:

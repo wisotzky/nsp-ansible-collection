@@ -8,7 +8,8 @@
 
 """Nokia NSP Version Module.
 
-Retrieve NSP system version information via undocumented internal API.
+Retrieve NSP system version information via internal API.
+Supports optional minimum-version check for playbook compatibility.
 """
 
 import json
@@ -31,11 +32,10 @@ except ImportError:
 DOCUMENTATION = r'''
 ---
 module: version
-short_description: Retrieve Nokia NSP system version
+short_description: Check Nokia NSP version
 description:
   - Retrieve the NSP system version via internal REST API endpoint.
   - Supports version validation against minimum release requirements.
-  - Uses httpapi connection with OAuth2 client credentials authentication.
 version_added: "0.0.1"
 author:
   - Sven Wisotzky
@@ -43,16 +43,15 @@ options:
   check:
     description:
       - Optional minimum required version in C(major.minor) format.
-      - "Examples: C(25.11), C(24.11), C(23.11)."
+      - Examples C(25.11), C(24.11), C(23.11)
       - If specified, fails if NSP version is lower than this value.
-    required: false
     type: str
-    default: null
+requirements:
+  - Ansible >= 2.10
+  - Connection to NSP controller with I(ansible_network_os=nokia.nsp.nsp).
 notes:
-  - Requires httpapi connection with C(ansible_network_os=nokia.nsp.nsp).
-  - Connection requires valid OAuth2 credentials.
+  - Requires M(ansible.netcommon.httpapi) connection using Network OS M(nokia.nsp.nsp).
   - This module uses an undocumented internal API endpoint.
-  - Version information extracted from C(nspOSVersion) field.
 '''
 
 EXAMPLES = r'''
@@ -150,6 +149,7 @@ def main():
             path=endpoint,
             data=None,
         )
+        response = response[1] if isinstance(response, tuple) and len(response) > 1 else response
 
         # Parse response
         if isinstance(response, str):

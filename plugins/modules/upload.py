@@ -8,8 +8,8 @@
 
 """Nokia NSP File Upload Module.
 
-Upload files to Nokia NSP using httpapi connection.
-Defaults to NSP file-service upload endpoint.
+Upload binary and text files to Nokia NSP using httpapi connection.
+Uses NSP file-service upload endpoint with optional overwrite control.
 """
 
 import os
@@ -35,37 +35,36 @@ module: upload
 short_description: Upload files to Nokia NSP
 description:
   - Upload binary or text files to Nokia NSP servers.
-  - Uses httpapi connection with Bearer token authentication.
   - Uses NSP file-service endpoint for uploads.
+  - Handles single and multiple file uploads.
 version_added: "0.0.1"
 author:
   - Sven Wisotzky
 options:
   local_path:
     description:
-      - Path to local file to upload.
-      - Can be a string for single file or list for multiple files.
+      - Path to local file(s) to upload.
+      - Can be a string for single file or list for batch uploads.
       - File(s) must exist and be readable.
     required: true
-    type: raw
+    type: list
+    elements: str
   remote_path:
     description:
-      - Remote directory on NSP file-service.
-      - If a file path is provided, the filename is used for upload.
-      - Example C(/nokia/nsp/cam/artifacts/bundle).
+      - Remote directory on NSP file-service to upload files to.
+      - If this is a directory, filenames from C(local_path) are used.
     required: true
     type: str
   overwrite:
     description:
       - Whether to overwrite existing files on NSP file-service.
-    required: false
     type: bool
     default: true
-notes:
-  - "Requires httpapi connection with ansible_network_os=nokia.nsp.nsp"
-  - "Uses Bearer token authentication (automatic via httpapi)"
 requirements:
-  - ansible >= 2.9
+  - Ansible >= 2.10
+  - Connection to NSP controller with I(ansible_network_os=nokia.nsp.nsp).
+notes:
+  - Requires M(ansible.netcommon.httpapi) connection using Network OS M(nokia.nsp.nsp).
 '''
 
 EXAMPLES = r'''

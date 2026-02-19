@@ -7,18 +7,13 @@
 # https://opensource.org/licenses/BSD-3-Clause)
 
 """Nokia NSP REST Module.
-
-Execute text-based REST API calls against Nokia NSP using httpapi connection.
-Aligned with Ansible's uri module but with integrated Bearer token and SSL handling.
-For binary file operations, use nokia.nsp.upload and nokia.nsp.download modules.
+Execute NSP REST API calls using httpapi connection.
 """
 
 import json
 import os
 import tempfile
 from datetime import datetime, timezone
-from urllib.parse import urlencode
-
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.connection import Connection
 from ansible.module_utils.common.text.converters import to_native
@@ -37,28 +32,22 @@ except ImportError:
 DOCUMENTATION = r'''
 ---
 module: rest
-short_description: Execute text-based REST API calls against Nokia NSP
+short_description: Execute NSP REST API calls
 description:
-  - Execute text-based REST API calls against Nokia NSP.
-  - Uses httpapi connection with Bearer token and SSL settings.
-  - Similar to ansible.builtin.uri but uses NSP httpapi connection.
-  - Supports text file read/write operations.
-  - Automatic JSON parsing and various body formats.
-  - For binary file operations use M(nokia.nsp.upload) and M(nokia.nsp.download).
+  - Execute REST API calls against Nokia NSP.
+  - Similar to M(ansible.builtin.uri) but uses M(ansible.netcommon.httpapi) connection with Network OS M(nokia.nsp.nsp).
 version_added: "0.0.1"
 author:
   - Sven Wisotzky
 options:
   path:
     description:
-      - REST API endpoint path without base URL
-      - Example "/wfm/api/v1/action-execution"
+      - REST API endpoint without base URL
     required: true
     type: str
   method:
     description:
       - HTTP method to use
-    required: false
     type: str
     choices:
       - GET
@@ -66,65 +55,25 @@ options:
       - PUT
       - DELETE
       - PATCH
-      - HEAD
-      - OPTIONS
-    default: 'GET'
+    default: GET
   body:
     description:
-      - Request body
-      - Can be a dict, list, or string
-      - Use with O(body_format) to control serialization
-    required: false
+      - API request body
+      - Dict/list are serialized as JSON
     type: raw
-  body_format:
-    description:
-      - Serialization format for request body
-      - json - JSON serialization
-      - form-urlencoded - URL-encoded form data
-      - form-multipart - Multipart form data (for file uploads)
-      - raw - Send as-is (default)
-    required: false
-    type: str
-    choices:
-      - json
-      - form-urlencoded
-      - form-multipart
-      - raw
-    default: 'raw'
-  src:
-    description:
-      - Path to text file to read as request body
-      - Cannot be used with O(body)
-      - For binary uploads use nokia.nsp.file_upload module
-    required: false
-    type: path
   dest:
     description:
-      - Path where to write text response content
-      - If a directory, filename from response will be used
+      - Write response body content as file
       - If file exists, will be overwritten
-      - For binary downloads use nokia.nsp.file_download module
-    required: false
+      - For binary downloads use M(nokia.nsp.download)
     type: path
-  return_content:
-    description:
-      - Whether to return response body content
-      - Always true for failed requests
-    required: false
-    type: bool
-    default: false
-  status_code:
-    description:
-      - List of acceptable HTTP status codes for success
-      - Default depends on method (200 for GET, 200-201 for POST, etc)
-    required: false
-    type: list
-    elements: int
   headers:
     description:
-      - Additional HTTP headers
-      - Authorization header added automatically
-    required: false
+      - This module automatically sets the authorization, content-type and accept headers.
+      - User can enforce content-type and accept headers by passing them in O(headers).
+      - User may also pass additional headers as needed.
+      - If not set, C(Accept) defaults to C(application/json)
+      - If not set, C(Content-Type) is inferred from O(body) to become either C(application/json) or C(text/plain).
     type: dict
     default: {}
   timeout:
@@ -133,28 +82,14 @@ options:
     required: false
     type: int
     default: 30
-  creates:
-    description:
-      - Skip if this file exists (idempotency)
-    required: false
-    type: path
-  removes:
-    description:
-      - Skip if this file does not exist (idempotency)
-    required: false
-    type: path
-  force:
-    description:
-      - Do not use cached responses
-    required: false
-    type: bool
-    default: false
+requirements:
+  - Ansible >= 2.10
+  - Connection to NSP controller with I(ansible_network_os=nokia.nsp.nsp).
 notes:
-  - "Requires httpapi connection with ansible_network_os=nokia.nsp.nsp"
-  - "Bearer token and SSL settings come from httpapi configuration"
-  - "Mutually exclusive: body and src"
-  - "For binary file operations use M(nokia.nsp.upload) and M(nokia.nsp.download)"
-  - "src and dest handle text files only with UTF-8 encoding"
+  - Requires M(ansible.netcommon.httpapi) connection using Network OS M(nokia.nsp.nsp).
+  - Success is 2xx; 404 for DELETE is also considered success (resource already absent).
+  - For file operations use M(nokia.nsp.upload) and M(nokia.nsp.download).
+  - Option O(dest) handles text files only with UTF-8 encoding.
 '''
 
 EXAMPLES = r'''
@@ -162,7 +97,9 @@ EXAMPLES = r'''
   nokia.nsp.rest:
     method: POST
     path: /wfm/api/v1/action-execution
-    body_format: json
+    headers:
+      Content-Type: application/json
+      Accept: application/json
     body:
       name: nsp.ping
       examples: Default
@@ -176,7 +113,6 @@ EXAMPLES = r'''
   nokia.nsp.rest:
     method: GET
     path: /nsp-file-service-app/rest/api/v1/directory?dirName=/nokia
-    return_content: true
   register: file_list
 '''
 
@@ -187,7 +123,7 @@ status:
   type: int
 content:
   description: Response body content as string
-  returned: when return_content is true or request failed
+  returned: when server returns a response body
   type: str
 json:
   description: Response body parsed as JSON
@@ -212,78 +148,61 @@ headers:
 '''
 
 
-def form_urlencoded(body):
-    """Convert dict/list to form-urlencoded string.
-
-    Args:
-        body: Dictionary or list of tuples to encode.
-
-    Returns:
-        URL-encoded string representation.
-    """
-    if isinstance(body, str):
-        return body
-
-    if isinstance(body, dict):
-        return urlencode(body)
-
-    if isinstance(body, list):
-        # List of tuples
-        return urlencode(body)
-
-    return body
+def _is_json_string(s):
+    """Return True if s is a string that parses as JSON."""
+    if not isinstance(s, str) or not s.strip():
+        return False
+    try:
+        json.loads(s)
+        return True
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return False
 
 
-def prepare_body(body, body_format):
-    """Prepare request body and content type.
+def _header_key(headers, name):
+    """Return the key for name in headers (case-insensitive), or None."""
+    lower = name.lower()
+    for k in headers:
+        if k.lower() == lower:
+            return k
+    return None
+
+
+def serialize_body(body):
+    """Serialize request body to string. Dict/list -> JSON; str -> as-is.
 
     Args:
         body: Request body (dict, list, str, or None).
-        body_format: Format type ("json", "form-urlencoded", "raw").
 
     Returns:
-        Tuple of (body_string, content_type).
+        String to send, or None.
 
     Raises:
         ValueError: If body cannot be serialized.
     """
     if body is None:
-        return None, None
-
-    # Convert Ansible data structures to plain Python objects
-    if hasattr(body, "items") and callable(body.items):  # dict-like
+        return None
+    if isinstance(body, str):
+        return body
+    if hasattr(body, "items") and callable(body.items):
         body = dict(body)
     elif isinstance(body, (list, tuple)):
         body = list(body)
+    try:
+        return json.dumps(body)
+    except TypeError as e:
+        raise ValueError(f"Failed to serialize body to JSON: {e}") from e
 
-    if body_format == "json":
-        if isinstance(body, str):
-            # String body - assume it's already JSON formatted
-            return body, "application/json"
-        else:
-            # Dict/list - convert to JSON string
-            try:
-                return json.dumps(body), "application/json"
-            except TypeError as e:
-                raise ValueError(f"Failed to serialize body to JSON: {e}")
 
-    elif body_format == "form-urlencoded":
-        result = form_urlencoded(body)
-        return (str(result) if result is not None else None,
-                "application/x-www-form-urlencoded")
-
-    elif body_format == "raw":
-        if isinstance(body, str):
-            return body, "text/plain"
-        else:
-            # For raw format with dict/list, convert to JSON
-            try:
-                return json.dumps(body), "application/json"
-            except TypeError:
-                return str(body), "text/plain"
-
-    # Fallback - convert to string
-    return str(body) if body is not None else None, None
+def _default_content_type(body):
+    """Return default Content-Type for body: application/json or text/plain."""
+    if body is None:
+        return None
+    if hasattr(body, "items") and callable(body.items) or isinstance(body, (list, tuple)):
+        return "application/json"
+    if isinstance(body, str):
+        return "application/json" if _is_json_string(body) else "text/plain"
+    return "text/plain"
 
 
 def write_file(module, dest, content):
@@ -327,88 +246,38 @@ def main():
             path=dict(type='str', required=True),
             method=dict(
                 type='str',
-                choices=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
+                choices=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
                 default='GET'
             ),
             body=dict(type='raw', required=False, default=None),
-            body_format=dict(
-                type='str',
-                choices=['json', 'form-urlencoded', 'form-multipart', 'raw'],
-                default='raw'
-            ),
-            src=dict(type='path', required=False),
             dest=dict(type='path', required=False),
-            return_content=dict(type='bool', default=False),
-            status_code=dict(type='list', elements='int', required=False),
             headers=dict(type='dict', default={}),
             timeout=dict(type='int', default=30),
-            creates=dict(type='path', required=False),
-            removes=dict(type='path', required=False),
-            force=dict(type='bool', default=False),
         ),
-        mutually_exclusive=[['body', 'src']],
         supports_check_mode=False,
     )
 
     path = module.params["path"]
     method = module.params["method"]
     body = module.params["body"]
-    body_format = module.params["body_format"]
-    src = module.params["src"]
     dest = module.params["dest"]
-    return_content = module.params["return_content"]
-    status_code = module.params["status_code"]
     headers = module.params["headers"] or {}
-    creates = module.params["creates"]
-    removes = module.params["removes"]
 
-    # Check idempotency conditions
-    if creates and os.path.exists(creates):
-        module.exit_json(
-            changed=False,
-            msg=f"skipped, since '{creates}' exists"
-        )
-
-    if removes and not os.path.exists(removes):
-        module.exit_json(
-            changed=False,
-            msg=f"skipped, since '{removes}' does not exist"
-        )
-
-    # Default expected status codes based on method
-    if status_code is None:
-        if method == 'POST':
-            status_code = [200, 201]
-        elif method in ['PUT', 'DELETE']:
-            status_code = [200, 204]
-        else:
-            status_code = [200]
-
-    # Prepare request body
-    request_body = None
+    # Prepare request body (user sets Content-Type via headers)
     request_data = None
-
-    if src:
-        # Read text file
+    if body is not None:
         try:
-            with open(src, "r", encoding="utf-8") as f:
-                request_data = f.read()
-            headers["Content-Type"] = "text/plain"
-        except Exception as e:
-            module.fail_json(
-                msg=f"Failed to read text file {src}: {to_native(e)}"
-            )
-    elif body is not None:
-        # Prepare body based on format
-        try:
-            request_body, content_type = prepare_body(body, body_format)
-            if content_type and 'Content-Type' not in headers:
-                headers['Content-Type'] = content_type
-
-            # Keep as string for httpapi (no encoding to bytes)
-            request_data = request_body
+            request_data = serialize_body(body)
         except ValueError as e:
             module.fail_json(msg=str(e))
+
+    # Default Accept and Content-Type only when not provided in headers
+    if _header_key(headers, "Accept") is None:
+        headers["Accept"] = "application/json"
+    if body is not None and _header_key(headers, "Content-Type") is None:
+        content_type = _default_content_type(body)
+        if content_type:
+            headers["Content-Type"] = content_type
 
     # Execute request
     connection = Connection(module._socket_path)
@@ -438,9 +307,7 @@ def main():
             response_content = response
 
         elapsed = int((datetime.now(timezone.utc) - start_time).total_seconds())
-
-        # Determine if we should return content or parse JSON
-        maybe_output = return_content or http_status not in status_code
+        success = (200 <= http_status <= 299) or (method == "DELETE" and http_status == 404)
 
         # Process text response content
         content = None
@@ -473,12 +340,12 @@ def main():
         result = {
             'status': http_status,
             'elapsed': elapsed,
-            'changed': method != 'GET' and http_status in status_code,
+            'changed': method != 'GET' and success,
             'headers': {},
         }
 
-        # Add content if requested or on error
-        if content is not None and maybe_output:
+        # Add content when server returned a response body
+        if content is not None:
             if isinstance(content, str):
                 result["content"] = content
             else:
@@ -489,7 +356,7 @@ def main():
             result["json"] = response_json
 
         # Write to destination file if specified (text only)
-        if dest and http_status in status_code and content is not None:
+        if dest and success and content is not None:
             write_content = content
             if isinstance(content, (dict, list)):
                 write_content = json.dumps(content, indent=2)
@@ -500,9 +367,9 @@ def main():
             result["path"] = dest
             result["changed"] = True
 
-        # Check status code
-        if http_status not in status_code:
-            result["msg"] = f"Status code {http_status} not in {status_code}"
+        # Fail on non-2xx
+        if not success:
+            result["msg"] = f"HTTP status {http_status} is not 2xx"
             module.fail_json(**result)
 
         module.exit_json(**result)
